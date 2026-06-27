@@ -110,4 +110,51 @@ USe of TLV and Virtual FPGA LABS at MAKER's CHIP
 \SV
    endmodule
 ​```
-
+#BCD to Seven segment code
+``` verilog
+\TLV
+   /board
+      /fpga
+         |seven_segment
+            @0
+               m4+fpga_heartbeat($refresh, 1, 5000000)
+               $reset = *reset;
+               
+               // 32-bit counter
+               $count[31:0] <= $reset ? 32'b0 : $refresh ? $count + 1 : $RETAIN;
+               
+               // Break into 4 BCD digits (display 0–9999 range)
+               $ones[3:0]      = $count[3:0];           // mod 10 approx — use proper BCD below
+               $digit0[3:0]    = $count % 10;
+               $digit1[3:0]    = ($count / 10) % 10;
+               $digit2[3:0]    = ($count / 100) % 10;
+               $digit3[3:0]    = ($count / 1000) % 10;
+               
+               ?$refresh
+                  // All 4 digits enabled
+                  *sseg_digit_n = 4'b0000;
+                  
+                  // Multiplex digits using lower 2 bits of count as selector
+                  $sel[1:0] = $count[1:0];
+                  
+                  $bcd[3:0] =
+                     ($sel == 2'd0) ? $digit0 :
+                     ($sel == 2'd1) ? $digit1 :
+                     ($sel == 2'd2) ? $digit2 :
+                                      $digit3;
+                  
+                  // BCD to 7-seg decoder (active low, gfedcba)
+                  *sseg_segment_n =
+                     ($bcd == 4'd0) ? 7'b1000000 :
+                     ($bcd == 4'd1) ? 7'b1111001 :
+                     ($bcd == 4'd2) ? 7'b0100100 :
+                     ($bcd == 4'd3) ? 7'b0110000 :
+                     ($bcd == 4'd4) ? 7'b0011001 :
+                     ($bcd == 4'd5) ? 7'b0010010 :
+                     ($bcd == 4'd6) ? 7'b0000010 :
+                     ($bcd == 4'd7) ? 7'b1111000 :
+                     ($bcd == 4'd8) ? 7'b0000000 :
+                                      7'b0010000 ;  // 9
+                  
+                  *sseg_decimal_point_n = 1'b1;
+```
